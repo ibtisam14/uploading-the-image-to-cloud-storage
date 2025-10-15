@@ -68,15 +68,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# ✅ ImageKit Config
 IMAGEKIT = {
     "public_key": os.getenv("IMAGEKIT_PUBLIC_KEY", ""),
     "private_key": os.getenv("IMAGEKIT_PRIVATE_KEY", ""),
     "url_endpoint": os.getenv("IMAGEKIT_URL_ENDPOINT", ""),
 }
 
-# ✅ JWT Authentication Config
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',

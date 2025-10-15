@@ -1,5 +1,3 @@
-from django.shortcuts import render
-from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
@@ -14,10 +12,10 @@ from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 from .models import UploadedImage
 from .serializers import RegisterSerializer
 import traceback
+import requests  
 
 User = get_user_model()
 
-# ✅ Initialize ImageKit
 imagekit = ImageKit(
     public_key=settings.IMAGEKIT["public_key"],
     private_key=settings.IMAGEKIT["private_key"],
@@ -31,10 +29,6 @@ def get_tokens_for_user(user):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
-
-# =======================
-#  AUTH VIEWS
-# =======================
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -77,10 +71,6 @@ def login_view(request):
         })
     return Response({'error': 'Invalid credentials'}, status=401)
 
-
-# =======================
-#  IMAGE UPLOAD (JWT protected)
-# =======================
 
 class UploadImageView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -125,10 +115,56 @@ class UploadImageView(APIView):
             print("Upload error:", traceback.format_exc())
             return Response({"error": str(e)}, status=500)
 
+class UploadImageURLView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-# =======================
-#  FETCH LOGGED-IN USER IMAGES (JWT protected)
-# =======================
+    def post(self, request):
+        if not request.FILES.get("image"):
+            return Response({"error": "No image provided"}, status=400)
+
+        uploaded_file = request.FILES["image"]
+        upload_url = "https://upload.imagekit.io/api/v1/files/upload"
+
+        try:
+            private_key = settings.IMAGEKIT["private_key"]
+            auth = (private_key, "")
+
+            payload = {
+                "fileName": uploaded_file.name,
+                "folder": "/django_uploads/",
+                "useUniqueFileName": "true",
+                "isPrivateFile": "false",
+            }
+
+            files = {
+                "file": uploaded_file.read(),
+            }
+
+            response = requests.post(upload_url, files=files, data=payload, auth=auth)
+            result = response.json()
+
+            if response.status_code == 200:
+                uploaded_img = UploadedImage.objects.create(
+                    user=request.user,
+                    name=result.get("name"),
+                    image_url=result.get("url"),
+                    file_id=result.get("fileId")
+                )
+                return Response({
+                    "success": True,
+                    "url": uploaded_img.image_url,
+                    "id": uploaded_img.id
+                })
+            else:
+                return Response({
+                    "error": result.get("message", "Upload failed"),
+                    "details": result
+                }, status=response.status_code)
+
+        except Exception as e:
+            print("Upload error:", traceback.format_exc())
+            return Response({"error": str(e)}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
