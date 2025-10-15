@@ -1,8 +1,8 @@
-# urls.py (in your app or project)
 from django.urls import path
-from . import views
+from .views import register_view, login_view, UploadImageView
 
 urlpatterns = [
-    path('', views.upload_page, name='upload_page'),
-    path('upload/', views.upload_image, name='upload_image'),
+    path('register/', register_view, name='register'),
+    path('login/', login_view, name='login'),
+    path('upload/', UploadImageView.as_view(), name='upload'),
 ]
