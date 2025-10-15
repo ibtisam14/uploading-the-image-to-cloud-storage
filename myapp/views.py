@@ -24,6 +24,7 @@ imagekit = ImageKit(
     url_endpoint=settings.IMAGEKIT["url_endpoint"]
 )
 
+
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     return {
@@ -123,3 +124,20 @@ class UploadImageView(APIView):
         except Exception as e:
             print("Upload error:", traceback.format_exc())
             return Response({"error": str(e)}, status=500)
+
+
+# =======================
+#  FETCH LOGGED-IN USER IMAGES (JWT protected)
+# =======================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTAuthentication])
+def my_images(request):
+    user = request.user
+    images = UploadedImage.objects.filter(user=user).values('id', 'name', 'image_url', 'uploaded_at')
+    return Response({
+        "user": user.username,
+        "total_images": images.count(),
+        "images": list(images)
+    })
